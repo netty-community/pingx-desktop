@@ -10,8 +10,9 @@ void main() async {
   // Configure window settings
   await windowManager.ensureInitialized();
   await windowManager.setTitle('PingX');
-  await windowManager.setMinimumSize(const Size(1300, 800));
-  await windowManager.setSize(const Size(1300, 800));
+  await windowManager.setMinimumSize(const Size(1600, 900));
+  await windowManager.setSize(const Size(1600, 900));
+  await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
 
   runApp(const ProviderScope(child: PingXApp()));
 }
@@ -23,9 +24,12 @@ class PingXApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MacosApp(
       title: 'PingX',
-      theme: MacosThemeData.light(),
-      darkTheme: MacosThemeData.dark(),
-      themeMode: ThemeMode.system,
+      theme: MacosThemeData.light().copyWith(
+        brightness: Brightness.light,
+        primaryColor: MacosColors.white,
+        canvasColor: MacosColors.white,
+      ),
+      themeMode: ThemeMode.light,
       home: const HomeScreen(),
     );
   }

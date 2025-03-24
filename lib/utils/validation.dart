@@ -1,5 +1,3 @@
-import 'dart:io';
-
 class ValidationResult {
   final bool isValid;
   final String? error;
@@ -93,7 +91,9 @@ class InputValidator {
     } else if (input.contains(':')) {
       error = 'Invalid IPv6 address. Example: 2001:db8::1';
     } else if (input.contains('.')) {
-      if (input.split('.').length == 4) {
+      // Check if it looks like an IPv4 attempt
+      final parts = input.split('.');
+      if (parts.length <= 4) {
         error = 'Invalid IPv4 address. Example: 192.168.1.1';
       } else {
         error = 'Invalid FQDN. Example: example.com';
@@ -138,8 +138,47 @@ class InputValidator {
     }
   }
 
-  static List<String> expandCIDR(String cidr) {
-    // TODO: Implement CIDR expansion if needed
-    return [cidr];
+  static List<String> expandCIDR(String cidr, {bool skipFirstAddress = true, bool skipLastAddress = true}) {
+    final parts = cidr.split('/');
+    if (parts.length != 2) return [cidr];
+
+    final ip = parts[0];
+    final prefix = int.tryParse(parts[1]);
+    if (prefix == null) return [cidr];
+
+    if (ip.contains('.')) {
+      // IPv4
+      try {
+        final octets = ip.split('.').map((e) => int.parse(e)).toList();
+        if (octets.length != 4) return [cidr];
+
+        final baseIp = octets.fold(0, (prev, octet) => (prev << 8) + octet);
+        final hostBits = 32 - prefix;
+        final numAddresses = 1 << hostBits;
+
+        final List<String> addresses = [];
+        int start = skipFirstAddress ? 1 : 0;
+        int end = skipLastAddress ? numAddresses - 1 : numAddresses;
+
+        for (int i = start; i < end; i++) {
+          final currentIp = baseIp + i;
+          final ipParts = [
+            (currentIp >> 24) & 0xFF,
+            (currentIp >> 16) & 0xFF,
+            (currentIp >> 8) & 0xFF,
+            currentIp & 0xFF,
+          ];
+          addresses.add(ipParts.join('.'));
+        }
+
+        return addresses;
+      } catch (e) {
+        return [cidr];
+      }
+    } else {
+      // IPv6 - For now, we'll just return the original CIDR as IPv6 expansion is more complex
+      // TODO: Implement IPv6 CIDR expansion if needed
+      return [cidr];
+    }
   }
 }

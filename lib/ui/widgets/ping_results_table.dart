@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
 import '../../providers/ping_providers.dart';
@@ -25,7 +26,7 @@ class SuccessRateBar extends StatelessWidget {
       children: [
         SizedBox(
           width: 80,
-          child: Text(
+          child: SelectableText(
             '$success/$total',
             style: MacosTheme.of(context).typography.body,
           ),
@@ -52,7 +53,7 @@ class SuccessRateBar extends StatelessWidget {
         const SizedBox(width: 8),
         SizedBox(
           width: 60,
-          child: Text(
+          child: SelectableText(
             '${percentage.toStringAsFixed(1)}%',
             textAlign: TextAlign.right,
             style: MacosTheme.of(context).typography.body,
@@ -84,7 +85,7 @@ class PingStatusIndicator extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Text(text),
+        SelectableText(text),
       ],
     );
   }
@@ -116,15 +117,15 @@ class PingResultsTable extends ConsumerWidget {
                   ),
                   defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                   columnWidths: const {
-                    0: FlexColumnWidth(1.2), // Hostname
-                    1: FlexColumnWidth(1.0), // IP
+                    0: FlexColumnWidth(1.1), // Hostname
+                    1: FlexColumnWidth(0.9), // IP
                     2: FlexColumnWidth(1.8), // Success Rate
-                    3: FlexColumnWidth(1.0), // Status
+                    3: FlexColumnWidth(0.9), // Status
                     4: FlexColumnWidth(0.9), // Min
-                    5: FlexColumnWidth(0.9), // Max
+                    5: FlexColumnWidth(1.0), // Max
                     6: FlexColumnWidth(0.9), // Avg
-                    7: FlexColumnWidth(0.9), // Jitter
-                    8: FlexColumnWidth(0.6), // Actions
+                    7: FlexColumnWidth(0.8), // Jitter
+                    8: FlexColumnWidth(0.7), // Actions
                   },
                   children: [
                     TableRow(
@@ -133,89 +134,68 @@ class PingResultsTable extends ConsumerWidget {
                           context,
                         ).primaryColor.withOpacity(0.1),
                       ),
-                      children: const [
+                      children: [
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('Hostname', textAlign: TextAlign.left),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'Hostname', 'hostname', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'IP Address',
-                              textAlign: TextAlign.left,
-                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'IP Address', 'ipAddr', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'Ping Success Rate',
-                              textAlign: TextAlign.left,
-                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'Success Rate', 'successRate', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'Last Status',
-                              textAlign: TextAlign.left,
-                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'Last Status', 'lastStatus', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'MinRTT(ms)',
-                              textAlign: TextAlign.left,
-                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'MinRTT(ms)', 'minLatency', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'MaxRTT(ms)',
-                              textAlign: TextAlign.left,
-                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'MaxRTT(ms)', 'maxLatency', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'AvgRTT(ms)',
-                              textAlign: TextAlign.left,
-                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'AvgRTT(ms)', 'avgLatency', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'Jitter(ms)',
-                              textAlign: TextAlign.left,
-                            ),
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildSortableHeader(context, 'Jitter(ms)', 'jitter', ref),
                           ),
                         ),
                         TableCell(
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('Actions', textAlign: TextAlign.left),
+                            padding: const EdgeInsets.all(8.0),
+                            child: SelectableText('Actions', textAlign: TextAlign.left),
                           ),
                         ),
                       ],
@@ -233,6 +213,73 @@ class PingResultsTable extends ConsumerWidget {
     );
   }
 
+  Widget _buildSortableHeader(BuildContext context, String text, String field, WidgetRef ref) {
+    final pingManager = ref.watch(pingManagerProvider);
+    final isCurrentSort = pingManager.sortField == field;
+    final theme = MacosTheme.of(context);
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          final manager = ref.read(pingManagerProvider);
+          manager.setSortField(field);
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+          decoration: BoxDecoration(
+            color: isCurrentSort 
+              ? const Color(0xFFE8F3FF)  
+              : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: isCurrentSort ? Border.all(
+              color: const Color(0xFF007AFF),  
+              width: 1,
+            ) : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    SelectableText(
+                      text, 
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: isCurrentSort 
+                          ? const Color(0xFF007AFF)  
+                          : theme.typography.headline.color,
+                        fontWeight: isCurrentSort ? FontWeight.w700 : FontWeight.w500, 
+                        fontSize: isCurrentSort ? 13.0 : null, 
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    if (isCurrentSort)
+                      Icon(
+                        pingManager.sortAscending 
+                          ? CupertinoIcons.arrow_up
+                          : CupertinoIcons.arrow_down,
+                        size: 14,
+                        color: const Color(0xFF007AFF),  
+                      ),
+                  ],
+                ),
+              ),
+              if (!isCurrentSort)
+                Icon(
+                  CupertinoIcons.arrow_up_down,
+                  size: 12,
+                  color: const Color(0xFF666666),  
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   TableRow _buildResultRow(BuildContext context, PingResult result) {
     return TableRow(
       children: [
@@ -240,14 +287,14 @@ class PingResultsTable extends ConsumerWidget {
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(result.hostname),
+            child: SelectableText(result.hostname),
           ),
         ),
         TableCell(
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(result.ipAddr),
+            child: SelectableText(result.ipAddr),
           ),
         ),
         TableCell(
@@ -271,28 +318,28 @@ class PingResultsTable extends ConsumerWidget {
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(result.minLatency.toStringAsFixed(1)),
+            child: SelectableText(result.minLatency.toStringAsFixed(1)),
           ),
         ),
         TableCell(
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(result.maxLatency.toStringAsFixed(1)),
+            child: SelectableText(result.maxLatency.toStringAsFixed(1)),
           ),
         ),
         TableCell(
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(result.avgLatency.toStringAsFixed(1)),
+            child: SelectableText(result.avgLatency.toStringAsFixed(1)),
           ),
         ),
         TableCell(
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Text(result.stdDevLatency.toStringAsFixed(1)),
+            child: SelectableText(result.stdDevLatency.toStringAsFixed(1)),
           ),
         ),
         TableCell(
@@ -304,10 +351,12 @@ class PingResultsTable extends ConsumerWidget {
               onPressed: () {
                 showMacosSheet(
                   context: context,
-                  builder:
-                      (context) => MacosSheet(
-                        child: StatisticsCharts(host: result.hostname),
-                      ),
+                  builder: (context) => MacosSheet(
+                    child: StatisticsCharts(
+                      host: result.hostname,
+                      hostResults: [result],
+                    ),
+                  ),
                 );
               },
             ),

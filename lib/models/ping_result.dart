@@ -15,7 +15,6 @@ class PingLog {
     required this.hostname,
     required this.ipAddr,
     required this.latency,
-    
   });
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +42,11 @@ class PingResult {
   double stdDevLatency;
   List<double> rtts;
   List<PingLog> pingLogs;
+  final double _sumLatency = 0.0;
+  final double _sumSquaredLatency = 0.0;
+
+  double get sumLatency => _sumLatency;
+  double get sumSquaredLatency => _sumSquaredLatency;
 
   PingResult({
     required this.hostname,
@@ -59,8 +63,8 @@ class PingResult {
     this.stdDevLatency = 0.0,
     List<double>? rtts,
     List<PingLog>? pingLogs,
-  })  : rtts = rtts ?? [],
-        pingLogs = pingLogs ?? [];
+  })  : rtts = rtts ?? <double>[],
+        pingLogs = pingLogs ?? <PingLog>[];
 
   Map<String, dynamic> toJson() => {
     'hostname': hostname,

@@ -31,7 +31,27 @@ class _HostInputSheetState extends ConsumerState<HostInputSheet> {
 
   void _validateInput() {
     setState(() {
-      _validationResults = InputValidator.validateInputs(_controller.text);
+      final text = _controller.text;
+      if (text.trim().isEmpty) {
+        _validationResults = [];
+        _hasError = false;
+        return;
+      }
+
+      // Split by lines and validate each non-empty line
+      final lines = text.split('\n');
+      _validationResults = lines.map((line) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) {
+          return ValidationResult(
+            isValid: false,
+            error: 'Please enter a valid IP address, hostname, or CIDR range',
+            type: 'invalid',
+          );
+        }
+        return InputValidator.validateInput(trimmed);
+      }).toList();
+
       _hasError = _validationResults.any((result) => !result.isValid);
     });
   }
@@ -150,23 +170,45 @@ class _HostInputSheetState extends ConsumerState<HostInputSheet> {
                       _hasError || _controller.text.trim().isEmpty
                           ? null // Disable button if there are errors
                           : () {
+                            // Validate all inputs first
+                            _validateInput();
+                            if (_hasError) return;
+
                             final text = _controller.text;
+                            final config = ref.read(configProvider);
+                            final List<String> expandedHosts = [];
 
-                            final hosts =
-                                text
-                                    .split('\n')
-                                    .map((e) => e.trim())
-                                    .where((e) => e.isNotEmpty)
-                                    .toList();
+                            // Process each line
+                            for (final line in text.split('\n')) {
+                              final trimmed = line.trim();
+                              if (trimmed.isEmpty) continue;
 
-                            if (hosts.isEmpty) {
+                              // Check if it's a CIDR notation
+                              final validation = InputValidator.validateInput(trimmed);
+                              if (!validation.isValid) continue;
+
+                              if (validation.type == 'cidr') {
+                                // Expand CIDR and add each address individually
+                                expandedHosts.addAll(
+                                  InputValidator.expandCIDR(
+                                    trimmed,
+                                    skipFirstAddress: config.skipCidrFirstAddr,
+                                    skipLastAddress: config.skipCidrLastAddr,
+                                  ),
+                                );
+                              } else {
+                                expandedHosts.add(trimmed);
+                              }
+                            }
+
+                            if (expandedHosts.isEmpty) {
                               return; // Prevent empty list
                             }
 
                             final manager = ref.read(pingManagerProvider);
                             manager.startPinging(
-                              hosts,
-                              ref.read(configProvider),
+                              expandedHosts,
+                              config,
                             );
                             Navigator.pop(context);
                           },

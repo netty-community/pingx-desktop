@@ -1,59 +1,135 @@
+import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
-import '../../providers/ping_providers.dart';
 import '../../models/ping_result.dart';
 
 class StatisticsCharts extends ConsumerWidget {
   final String host;
+  final List<PingResult> hostResults;
 
-  const StatisticsCharts({super.key, required this.host});
+  const StatisticsCharts({
+    super.key,
+    required this.host,
+    required this.hostResults,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final results = ref.watch(pingResultsProvider);
+    final scrollController = ScrollController();
 
-    return results.when(
-      data: (data) {
-        final hostResults = data.where((result) => result.hostname == host).toList();
+    return Builder(
+      builder: (context) {
         if (hostResults.isEmpty) {
           return const Center(child: Text('No data available'));
         }
 
         final result = hostResults.first;
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Statistics for $host',
-                    style: MacosTheme.of(context).typography.title1,
-                  ),
-                  const Spacer(),
-                  PushButton(
-                    controlSize: ControlSize.small,
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Last updated: ${DateTime.now().toString()}',
-                style: MacosTheme.of(context).typography.caption1.copyWith(
-                      color: MacosTheme.of(context).typography.caption1.color?.withOpacity(0.7),
+        return Focus(
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            if (event.logicalKey == LogicalKeyboardKey.escape) {
+              Navigator.of(context).pop();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: MacosScrollbar(
+              controller: scrollController,
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Statistics for $host',
+                          style: MacosTheme.of(context).typography.title1,
+                        ),
+                        const Spacer(),
+                        PushButton(
+                          controlSize: ControlSize.small,
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Close'),
+                        ),
+                      ],
                     ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Container(
+                    const SizedBox(height: 16),
+                    Text(
+                      'Last updated: ${DateTime.now().toString()}',
+                      style: MacosTheme.of(context).typography.caption1.copyWith(
+                            color: MacosTheme.of(context).typography.caption1.color?.withOpacity(0.7),
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: MacosTheme.of(context).canvasColor,
+                                border: Border.all(color: MacosTheme.of(context).dividerColor),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Network Information',
+                                    style: MacosTheme.of(context).typography.subheadline,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildStatRow(context, "Hostname", result.hostname),
+                                  _buildStatRow(context, 'IP Address', result.ipAddr),
+                                  _buildStatRow(context, 'Status', result.lastPingFailed ? 'Failed' : 'Success'),
+                                  _buildStatRow(context, 'Total Pings', result.totalCount.toString()),
+                                  _buildStatRow(context, 'Failed Pings', result.failureCount.toString()),
+                                  _buildStatRow(context, 'Failure Rate', '${result.failurePercent.toStringAsFixed(1)}%'),
+                                  _buildStatRow(context, 'Last Ping', result.lastPingFailed ? 'Failed' : 'Success'),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: MacosTheme.of(context).canvasColor,
+                                border: Border.all(color: MacosTheme.of(context).dividerColor),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Response Time Statistics',
+                                    style: MacosTheme.of(context).typography.subheadline,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildStatRow(context, 'MinRTT(ms)', '${result.minLatency.toStringAsFixed(2)} ms'),
+                                  _buildStatRow(context, 'MaxRTT(ms)', '${result.maxLatency.toStringAsFixed(2)} ms'),
+                                  _buildStatRow(context, 'AverageRTT(ms)', '${result.avgLatency.toStringAsFixed(2)} ms'),
+                                  _buildStatRow(context, 'Jitter(ms)', '${result.stdDevLatency.toStringAsFixed(2)} ms'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: MacosTheme.of(context).canvasColor,
@@ -64,59 +140,24 @@ class StatisticsCharts extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Response Time Statistics',
-                            style: MacosTheme.of(context).typography.headline,
+                            'Response Time History',
+                            style: MacosTheme.of(context).typography.subheadline,
                           ),
-                          const SizedBox(height: 16),
-                          _buildStatRow(context, 'Minimum', '${result.minLatency.toStringAsFixed(2)} ms'),
-                          _buildStatRow(context, 'Maximum', '${result.maxLatency.toStringAsFixed(2)} ms'),
-                          _buildStatRow(context, 'Average', '${result.avgLatency.toStringAsFixed(2)} ms'),
-                          _buildStatRow(context, 'Jitter', '${result.stdDevLatency.toStringAsFixed(2)} ms'),
-                          _buildStatRow(context, 'Success Rate', '${((1 - result.failurePercent) * 100).toStringAsFixed(1)}%'),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Network Information',
-                            style: MacosTheme.of(context).typography.headline,
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 300,
+                            child: _buildResponseTimeChart(result),
                           ),
-                          const SizedBox(height: 16),
-                          _buildStatRow(context, 'IP Address', result.ipAddr),
-                          _buildStatRow(context, 'Status', result.lastPingFailed ? 'Failed' : 'Success'),
-                          _buildStatRow(context, 'Total Pings', result.totalCount.toString()),
                         ],
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: MacosTheme.of(context).canvasColor,
-                  border: Border.all(color: MacosTheme.of(context).dividerColor),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Response Time History',
-                      style: MacosTheme.of(context).typography.headline,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 200,
-                      child: _buildResponseTimeChart(result),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         );
       },
-      loading: () => const Center(child: ProgressCircle()),
-      error: (error, stack) => Center(child: Text('Error: $error')),
     );
   }
 
@@ -142,10 +183,13 @@ class StatisticsCharts extends ConsumerWidget {
   }
 
   Widget _buildResponseTimeChart(PingResult result) {
-    final spots = result.pingLogs.asMap().entries.map((entry) {
+    if (result.pingLogs.isEmpty) return const SizedBox.shrink();
+
+    final startTime = result.startTime.millisecondsSinceEpoch.toDouble();
+    final spots = result.pingLogs.map((log) {
       return FlSpot(
-        entry.key.toDouble(),
-        entry.value.failed ? 0 : entry.value.rtt,
+        log.timestamp.millisecondsSinceEpoch.toDouble() - startTime,
+        log.failed ? 0 : log.rtt / 1000, // Convert microseconds to milliseconds
       );
     }).toList();
 
@@ -160,12 +204,40 @@ class StatisticsCharts extends ConsumerWidget {
         ],
         titlesData: FlTitlesData(
           bottomTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
+            axisNameWidget: const Text('Time (mm:ss)'),
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 45,
+              interval: 3000, // 3 seconds interval
+              getTitlesWidget: (value, meta) {
+                final seconds = (value / 1000).floor();
+                final minutes = (seconds / 60).floor();
+                final remainingSeconds = seconds % 60;
+                return SideTitleWidget(
+                  axisSide: meta.axisSide,
+                  space: 10, // Add some extra space between labels
+                  child: Text(
+                    '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                );
+              },
+            ),
           ),
           leftTitles: AxisTitles(
+            axisNameWidget: const Text('RTT (ms)'),
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 40,
+              getTitlesWidget: (value, meta) {
+                return SideTitleWidget(
+                  axisSide: meta.axisSide,
+                  child: Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                );
+              },
             ),
           ),
           topTitles: AxisTitles(

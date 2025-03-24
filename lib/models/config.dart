@@ -18,7 +18,7 @@ class ProbeConfig {
     this.size = 56,
     this.wait = 3,
     this.maxStoreLogs = 100,
-    this.maxConcurrentProbes = 100,
+    this.maxConcurrentProbes = 300,
     this.skipCidrFirstAddr = true,
     this.skipCidrLastAddr = true,
     this.ttl = 64,

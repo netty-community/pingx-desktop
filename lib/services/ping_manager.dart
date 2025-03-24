@@ -12,9 +12,11 @@ class PingManager {
   Timer? _updateTimer;
   Timer? _cleanupTimer;
 
-  static const int _defaultWait = 3; // 3 second
-  static const int _maxHistory = 100; // Keep last 100 pings
-  static const int _maxHostsInMemory = 50; // Maximum number of hosts to track
+  String _sortField = 'hostname';
+  bool _sortAscending = true;
+
+  String get sortField => _sortField;
+  bool get sortAscending => _sortAscending;
 
   // Singleton pattern
   static final PingManager _instance = PingManager._internal();
@@ -34,10 +36,7 @@ class PingManager {
     _isRunning = true;
 
     // Limit number of hosts in memory
-    final hostsToTrack = hosts.take(_maxHostsInMemory).toList();
-    final maxProbes = min(config.maxConcurrentProbes, _maxHostsInMemory);
-    final activeHosts = hostsToTrack.take(maxProbes).toList();
-
+    final activeHosts = hosts.take(config.maxConcurrentProbes).toList();
     for (final host in activeHosts) {
       if (!_activeProbes.containsKey(host)) {
         final hostAddress = await _resolveHostname(host);
@@ -123,7 +122,51 @@ class PingManager {
           .whereType<PingResult>()
           .toList();
     }
-    return _results.values.toList();
+    final results = _results.values.toList();
+    results.sort((a, b) {
+      int comparison;
+      switch (_sortField) {
+        case 'hostname':
+          comparison = a.hostname.compareTo(b.hostname);
+          break;
+        case 'ipAddr':
+          comparison = a.ipAddr.compareTo(b.ipAddr);
+          break;
+        case 'successRate':
+          final aRate = a.totalCount > 0 ? a.successCount / a.totalCount : 0.0;
+          final bRate = b.totalCount > 0 ? b.successCount / b.totalCount : 0.0;
+          comparison = aRate.compareTo(bRate);
+          break;
+        case 'lastStatus':
+          comparison = a.lastPingFailed.toString().compareTo(b.lastPingFailed.toString());
+          break;
+        case 'minLatency':
+          comparison = a.minLatency.compareTo(b.minLatency);
+          break;
+        case 'maxLatency':
+          comparison = a.maxLatency.compareTo(b.maxLatency);
+          break;
+        case 'avgLatency':
+          comparison = a.avgLatency.compareTo(b.avgLatency);
+          break;
+        case 'jitter':
+          comparison = a.stdDevLatency.compareTo(b.stdDevLatency);
+          break;
+        default:
+          comparison = 0;
+      }
+      return _sortAscending ? comparison : -comparison;
+    });
+    return results;
+  }
+
+  void setSortField(String field) {
+    if (_sortField == field) {
+      _sortAscending = !_sortAscending;
+    } else {
+      _sortField = field;
+      _sortAscending = true;
+    }
   }
 
   void dispose() {
@@ -165,19 +208,19 @@ class PingManager {
         final event = await ping.stream.first;
 
         if (event.error != null) {
-          _handlePingError(host);
+          _handlePingError(host, config);
         } else {
-          _handlePingResponse(host, event);
+          _handlePingResponse(host, event, config);
         }
       } catch (error) {
-        _handlePingError(host);
+        _handlePingError(host, config);
       }
 
       // Store ping instance
       _activeProbes[host] = ping;
 
       // Wait for configured interval before next ping
-      await Future.delayed(Duration(seconds: config.wait ?? _defaultWait));
+      await Future.delayed(Duration(seconds: config.wait));
     }
   }
 
@@ -190,7 +233,7 @@ class PingManager {
     }
   }
 
-  void _handlePingResponse(String host, PingData event) {
+  void _handlePingResponse(String host, PingData event, ProbeConfig config) {
     if (!_results.containsKey(host)) return;
 
     final result = _results[host]!;
@@ -241,12 +284,12 @@ class PingManager {
     );
 
     // Keep only last N ping logs
-    if (result.pingLogs.length > _maxHistory) {
+    if (result.pingLogs.length > config.maxStoreLogs) {
       result.pingLogs.removeAt(0);
     }
 
     // Keep only last N RTTs
-    if (result.rtts.length > _maxHistory) {
+    if (result.rtts.length > config.maxStoreLogs * config.count) {
       result.rtts.removeAt(0);
     }
 
@@ -269,7 +312,7 @@ class PingManager {
     );
   }
 
-  void _handlePingError(String host) {
+  void _handlePingError(String host, ProbeConfig config) {
     if (!_results.containsKey(host)) return;
 
     final result = _results[host]!;
@@ -291,7 +334,7 @@ class PingManager {
     );
 
     // Keep only last N ping logs
-    if (result.pingLogs.length > _maxHistory) {
+    if (result.pingLogs.length > config.maxStoreLogs) {
       result.pingLogs.removeAt(0);
     }
 
