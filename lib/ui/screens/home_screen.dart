@@ -92,7 +92,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Version 1.0.0',
+                        'Version 1.0.1',
                         style: MacosTheme.of(context).typography.body,
                       ),
                       const SizedBox(height: 16),

@@ -269,7 +269,7 @@ class PingManager {
     }
 
     result.failureCount = result.totalCount - result.successCount;
-    result.failurePercent = result.failureCount / result.totalCount;
+    result.failurePercent = (result.failureCount / result.totalCount) * 100;
 
     // Add to ping logs
     result.pingLogs.add(
@@ -319,7 +319,7 @@ class PingManager {
     result.totalCount++;
     result.failureCount++;
     result.lastPingFailed = true;
-    result.failurePercent = result.failureCount / result.totalCount;
+    result.failurePercent = (result.failureCount / result.totalCount) * 100;
 
     // Add to ping logs
     result.pingLogs.add(

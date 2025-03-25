@@ -195,13 +195,13 @@ class PingResultsTable extends ConsumerWidget {
                           verticalAlignment: TableCellVerticalAlignment.middle,
                           child: Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: SelectableText('Actions', textAlign: TextAlign.left),
+                            child: SelectableText('Details', textAlign: TextAlign.left),
                           ),
                         ),
                       ],
                     ),
                     ...data
-                        .map((result) => _buildResultRow(context, result))
+                        .map((result) => _buildResultRow(context, result, ref))
                         .toList(),
                   ],
                 ),
@@ -280,7 +280,7 @@ class PingResultsTable extends ConsumerWidget {
     );
   }
 
-  TableRow _buildResultRow(BuildContext context, PingResult result) {
+  TableRow _buildResultRow(BuildContext context, PingResult result, WidgetRef ref) {
     return TableRow(
       children: [
         TableCell(
@@ -352,9 +352,21 @@ class PingResultsTable extends ConsumerWidget {
                 showMacosSheet(
                   context: context,
                   builder: (context) => MacosSheet(
-                    child: StatisticsCharts(
-                      host: result.hostname,
-                      hostResults: [result],
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        // Get all results for this host
+                        final results = ref.watch(pingResultsProvider);
+                        final allResults = results.when(
+                          data: (data) => data.where((r) => r.hostname == result.hostname).toList(),
+                          loading: () => [result],
+                          error: (_, __) => [result],
+                        );
+                        
+                        return StatisticsCharts(
+                          host: result.hostname,
+                          hostResults: allResults,
+                        );
+                      },
                     ),
                   ),
                 );

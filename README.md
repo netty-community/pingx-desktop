@@ -82,8 +82,21 @@ flutter config --enable-macos-desktop
 flutter run -d macos
 
 flutter build macos
+
+mkdir -p tmp_dmg && cp -r "build/macos/Build/Products/Release/PingX.app" tmp_dmg/ && create-dmg \
+  --volname "PingX" \
+  --window-pos 200 120 \
+  --window-size 800 400 \
+  --icon-size 100 \
+  --icon "PingX.app" 200 190 \
+  --hide-extension "PingX.app" \
+  --app-drop-link 600 185 \
+  "PingX.dmg" \
+  "tmp_dmg/"
+
+rm -rf tmp_dmg
 ```
 
 ## License
 
-[Add your license information here]
+This project is under Apache License 2.0

@@ -95,6 +95,9 @@ class _HostInputSheetState extends ConsumerState<HostInputSheet> {
                 controller: _controller,
                 placeholder: 'Enter hosts (one per line) or CIDR ranges',
                 maxLines: 10,
+                enableSuggestions: true,
+                enableInteractiveSelection: true,
+                selectionControls: CupertinoTextSelectionControls(),
               ),
             ),
             if (_validationResults.isNotEmpty) ...[
