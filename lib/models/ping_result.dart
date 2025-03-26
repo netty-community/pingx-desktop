@@ -31,9 +31,12 @@ class PingResult {
   final String hostname;
   final String ipAddr;
   final DateTime startTime;
+  final double dnsLookupTime;
   int totalCount;
   int successCount;
   int failureCount;
+  int consecutiveFailureCount;
+  int maxFailureCount;
   double failurePercent;
   bool lastPingFailed;
   double minLatency;
@@ -52,9 +55,12 @@ class PingResult {
     required this.hostname,
     required this.ipAddr,
     required this.startTime,
+    this.dnsLookupTime = 0.0,
     this.totalCount = 0,
     this.successCount = 0,
     this.failureCount = 0,
+    this.consecutiveFailureCount = 0,
+    this.maxFailureCount = 0,
     this.failurePercent = 0.0,
     this.lastPingFailed = false,
     this.minLatency = double.infinity,
@@ -63,16 +69,19 @@ class PingResult {
     this.stdDevLatency = 0.0,
     List<double>? rtts,
     List<PingLog>? pingLogs,
-  })  : rtts = rtts ?? <double>[],
-        pingLogs = pingLogs ?? <PingLog>[];
+  }) : rtts = rtts ?? <double>[],
+       pingLogs = pingLogs ?? <PingLog>[];
 
   Map<String, dynamic> toJson() => {
     'hostname': hostname,
     'ipAddr': ipAddr,
     'startTime': startTime.toIso8601String(),
+    'dnsLookupTime': dnsLookupTime,
     'totalCount': totalCount,
     'successCount': successCount,
     'failureCount': failureCount,
+    'consecutiveFailureCount': consecutiveFailureCount,
+    'maxFailureCount': maxFailureCount,
     'failurePercent': failurePercent,
     'lastPingFailed': lastPingFailed,
     'minLatency': minLatency,

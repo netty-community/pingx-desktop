@@ -1,5 +1,5 @@
-import 'dart:math' as math;
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,10 +29,7 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
   @override
   void initState() {
     super.initState();
-    _tabController = MacosTabController(
-      initialIndex: 0,
-      length: 2,
-    );
+    _tabController = MacosTabController(initialIndex: 0, length: 2);
     _mainScrollController = ScrollController();
     _logsScrollController = ScrollController();
   }
@@ -50,7 +47,7 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
     // Watch ping results and interval to trigger rebuild
     ref.watch(pingResultsProvider);
     final pingInterval = ref.watch(pingIntervalProvider);
-    
+
     return Builder(
       builder: (context) {
         if (widget.hostResults.isEmpty) {
@@ -61,28 +58,11 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
         final allPingLogs =
             widget.hostResults.expand((result) => result.pingLogs).toList();
 
-        final minRtt = allPingLogs
-            .where((log) => !log.failed)
-            .map((log) => log.rtt)
-            .reduce((a, b) => a < b ? a : b);
-        final maxRtt = allPingLogs
-            .where((log) => !log.failed)
-            .map((log) => log.rtt)
-            .reduce((a, b) => a > b ? a : b);
-        final avgRtt =
-            allPingLogs
-                .where((log) => !log.failed)
-                .map((log) => log.rtt)
-                .reduce((a, b) => a + b) /
-            allPingLogs.where((log) => !log.failed).length;
-
-        final variance =
-            allPingLogs
-                .where((log) => !log.failed)
-                .map((log) => (log.rtt - avgRtt) * (log.rtt - avgRtt))
-                .reduce((a, b) => a + b) /
-            allPingLogs.where((log) => !log.failed).length;
-        final stdDev = variance > 0 ? math.sqrt(variance) : 0;
+        // Use values directly from PingResult
+        final minRtt = latestResult.minLatency;
+        final maxRtt = latestResult.maxLatency;
+        final avgRtt = latestResult.avgLatency;
+        final stdDev = latestResult.stdDevLatency;
 
         return Focus(
           autofocus: true,
@@ -223,23 +203,45 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
                                   const SizedBox(height: 12),
                                   _buildStatRow(
                                     context,
+                                    'DNS Lookup(ms)',
+                                    latestResult.dnsLookupTime > 0.0
+                                        ? '${latestResult.dnsLookupTime.toStringAsFixed(2)} ms'
+                                        : '--',
+                                  ),
+                                  _buildStatRow(
+                                    context,
                                     'MinRTT(ms)',
-                                    '${(minRtt / 1000).toStringAsFixed(2)} ms',
+                                    '${(minRtt).toStringAsFixed(2)} ms',
+                                    rawValue: minRtt,
                                   ),
                                   _buildStatRow(
                                     context,
                                     'MaxRTT(ms)',
-                                    '${(maxRtt / 1000).toStringAsFixed(2)} ms',
+                                    '${(maxRtt).toStringAsFixed(2)} ms',
+                                    rawValue: maxRtt,
                                   ),
                                   _buildStatRow(
                                     context,
                                     'AverageRTT(ms)',
-                                    '${(avgRtt / 1000).toStringAsFixed(2)} ms',
+                                    '${(avgRtt).toStringAsFixed(2)} ms',
+                                    rawValue: avgRtt,
                                   ),
                                   _buildStatRow(
                                     context,
                                     'Jitter(ms)',
-                                    '${(stdDev / 1000).toStringAsFixed(2)} ms',
+                                    '${(stdDev).toStringAsFixed(2)} ms',
+                                    isJitter: true,
+                                    rawValue: stdDev,
+                                  ),
+                                  _buildStatRow(
+                                    context,
+                                    'Current Failures',
+                                    '${latestResult.consecutiveFailureCount}',
+                                  ),
+                                  _buildStatRow(
+                                    context,
+                                    'Max Failures',
+                                    '${latestResult.maxFailureCount}',
                                   ),
                                 ],
                               ),
@@ -268,10 +270,7 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
                                 label: 'Response Time History',
                                 active: true,
                               ),
-                              MacosTab(
-                                label: 'Ping Logs',
-                                active: false,
-                              ),
+                              MacosTab(label: 'Ping Logs', active: false),
                             ],
                             children: [
                               // Response Time History Tab
@@ -281,7 +280,10 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
                                   const SizedBox(height: 12),
                                   SizedBox(
                                     height: 300,
-                                    child: _buildResponseTimeChart(widget.hostResults, pingInterval),
+                                    child: _buildResponseTimeChart(
+                                      widget.hostResults,
+                                      pingInterval,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -311,7 +313,38 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
     );
   }
 
-  Widget _buildStatRow(BuildContext context, String label, String value) {
+  Color _getRttColor(double rtt) {
+    if (rtt < 150) {
+      return CupertinoColors.systemGreen;
+    } else if (rtt < 200) {
+      return CupertinoColors.systemOrange;
+    } else {
+      return CupertinoColors.systemRed;
+    }
+  }
+
+  Color _getJitterColor(double jitter) {
+    if (jitter < 20) {
+      return CupertinoColors.systemGreen;
+    } else if (jitter < 50) {
+      return CupertinoColors.systemYellow;
+    } else {
+      return CupertinoColors.systemRed;
+    }
+  }
+
+  Widget _buildStatRow(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isJitter = false,
+    double? rawValue,
+  }) {
+    final color =
+        rawValue != null
+            ? (isJitter ? _getJitterColor(rawValue) : _getRttColor(rawValue))
+            : null;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -325,31 +358,41 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
             ),
           ),
           const Spacer(),
-          Text(value, style: MacosTheme.of(context).typography.body),
+          Text(
+            value,
+            style: MacosTheme.of(context).typography.body.copyWith(
+              color: color,
+              fontWeight: color != null ? FontWeight.w600 : null,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildResponseTimeChart(List<PingResult> results, Duration pingInterval) {
+  Widget _buildResponseTimeChart(
+    List<PingResult> results,
+    Duration pingInterval,
+  ) {
     if (results.isEmpty) return const SizedBox.shrink();
 
     final allPingLogs = results.expand((result) => result.pingLogs).toList();
-    final startTime = allPingLogs.first.timestamp.millisecondsSinceEpoch.toDouble();
-    
+    final startTime =
+        allPingLogs.first.timestamp.millisecondsSinceEpoch.toDouble();
+
     // Calculate max RTT for y-axis scale
     final maxRtt = allPingLogs
         .where((log) => !log.failed)
-        .map((log) => log.rtt / 1000) // Convert to ms
+        .map((log) => log.rtt) // Convert to ms
         .fold(0.0, (max, value) => value > max ? value : max);
-    
+
     // Round up to nearest multiple of 100 for cleaner scale
     final yAxisMax = ((maxRtt + 99) ~/ 100) * 100.0;
-    
+
     final spots = allPingLogs.map((log) {
       return FlSpot(
         log.timestamp.millisecondsSinceEpoch.toDouble() - startTime,
-        log.failed ? 0 : log.rtt / 1000, // Convert microseconds to milliseconds
+        log.failed ? 0 : log.rtt, // Convert microseconds to milliseconds
       );
     }).toList();
 
@@ -361,12 +404,14 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
           LineChartBarData(
             spots: spots,
             isCurved: true,
+            preventCurveOverShooting: true,
+            curveSmoothness: 0.2, // Reduce curve smoothness for better control
             dotData: FlDotData(
               show: true,
               getDotPainter: (spot, percent, barData, index) {
                 return FlDotCirclePainter(
                   radius: 2,
-                  color: const Color.fromARGB(255, 105, 127, 212),
+                  color: spot.y == 0 ? MacosColors.systemRedColor : const Color.fromARGB(255, 105, 127, 212),
                   strokeWidth: 1,
                   strokeColor: MacosTheme.of(context).canvasColor,
                 );
@@ -402,10 +447,7 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
             ),
           ),
           bottomTitles: AxisTitles(
-            axisNameWidget: const Text(
-              'Time',
-              style: TextStyle(fontSize: 12),
-            ),
+            axisNameWidget: const Text('Time', style: TextStyle(fontSize: 12)),
             axisNameSize: 24,
             sideTitles: SideTitles(
               showTitles: true,
@@ -426,7 +468,8 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: true,
-          horizontalInterval: yAxisMax / 10, // More grid lines for better readability
+          horizontalInterval:
+              yAxisMax / 10, // More grid lines for better readability
           verticalInterval: pingInterval.inMilliseconds.toDouble(),
         ),
         borderData: FlBorderData(
@@ -441,7 +484,10 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
             tooltipBorder: BorderSide(
               color: MacosTheme.of(context).dividerColor,
             ),
-            tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            tooltipPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
             fitInsideHorizontally: true,
             fitInsideVertically: true,
             tooltipMargin: -30, // Move tooltip below the point
@@ -449,10 +495,7 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
               return spots.map((spot) {
                 return LineTooltipItem(
                   '${spot.y.toStringAsFixed(1)} ms',
-                  TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
                 );
               }).toList();
             },
@@ -489,34 +532,52 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
                 _buildTableHeader('Status'),
               ],
             ),
-            ...logs.map((log) => TableRow(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Text(
-                    log.timestamp.toLocal().toString().split('.')[0],
-                    style: const TextStyle(fontSize: 12),
+            ...logs
+                .map(
+                  (log) => TableRow(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 12,
+                        ),
+                        child: Text(
+                          log.timestamp.toLocal().toString().split('.')[0],
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 12,
+                        ),
+                        child: Text(
+                          log.failed
+                              ? '-'
+                              : (log.rtt / 1000).toStringAsFixed(2),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 12,
+                        ),
+                        child: Text(
+                          log.failed ? 'Failed' : 'Success',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                log.failed
+                                    ? MacosColors.systemRedColor
+                                    : MacosColors.systemGreenColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Text(
-                    log.failed ? '-' : (log.rtt / 1000).toStringAsFixed(2),
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  child: Text(
-                    log.failed ? 'Failed' : 'Success',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: log.failed ? MacosColors.systemRedColor : MacosColors.systemGreenColor,
-                    ),
-                  ),
-                ),
-              ],
-            )).toList(),
+                )
+                .toList(),
           ],
         ),
       ),
@@ -528,10 +589,7 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       child: Text(
         text,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       ),
     );
   }

@@ -18,9 +18,7 @@ class SettingsView extends ConsumerWidget {
         decoration: BoxDecoration(
           color: MacosColors.white,
           border: Border(
-            bottom: BorderSide(
-              color: MacosTheme.of(context).dividerColor,
-            ),
+            bottom: BorderSide(color: MacosTheme.of(context).dividerColor),
           ),
         ),
       ),
@@ -45,7 +43,8 @@ class SettingsView extends ConsumerWidget {
                       context: context,
                       label: 'Interval (ms)',
                       value: config.interval,
-                      onChanged: (value) => configNotifier.updateInterval(value),
+                      onChanged:
+                          (value) => configNotifier.updateInterval(value),
                       min: 100,
                       max: 10000,
                     ),
@@ -91,7 +90,8 @@ class SettingsView extends ConsumerWidget {
                       context: context,
                       label: 'Max Store Logs',
                       value: config.maxStoreLogs,
-                      onChanged: (value) => configNotifier.updateMaxStoreLogs(value),
+                      onChanged:
+                          (value) => configNotifier.updateMaxStoreLogs(value),
                       min: 10,
                       max: 1000,
                     ),
@@ -99,7 +99,9 @@ class SettingsView extends ConsumerWidget {
                       context: context,
                       label: 'Max Concurrent Probes',
                       value: config.maxConcurrentProbes,
-                      onChanged: (value) => configNotifier.updateMaxConcurrentProbes(value),
+                      onChanged:
+                          (value) =>
+                              configNotifier.updateMaxConcurrentProbes(value),
                       min: 1,
                       max: 1000,
                     ),
@@ -116,7 +118,10 @@ class SettingsView extends ConsumerWidget {
                           PushButton(
                             controlSize: ControlSize.regular,
                             padding: const EdgeInsets.all(8),
-                            color: config.skipCidrFirstAddr ? const Color.fromARGB(255, 228, 232, 237) : MacosColors.transparent,
+                            color:
+                                config.skipCidrFirstAddr
+                                    ? const Color.fromARGB(255, 228, 232, 237)
+                                    : MacosColors.transparent,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -128,7 +133,10 @@ class SettingsView extends ConsumerWidget {
                                   ),
                               ],
                             ),
-                            onPressed: () => configNotifier.updateSkipCidrFirstAddr(!config.skipCidrFirstAddr),
+                            onPressed:
+                                () => configNotifier.updateSkipCidrFirstAddr(
+                                  !config.skipCidrFirstAddr,
+                                ),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -145,7 +153,10 @@ class SettingsView extends ConsumerWidget {
                           PushButton(
                             controlSize: ControlSize.regular,
                             padding: const EdgeInsets.all(8),
-                            color: config.skipCidrLastAddr ? const Color.fromARGB(255, 228, 232, 237) : MacosColors.transparent,
+                            color:
+                                config.skipCidrLastAddr
+                                    ? const Color.fromARGB(255, 228, 232, 237)
+                                    : MacosColors.transparent,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -157,7 +168,10 @@ class SettingsView extends ConsumerWidget {
                                   ),
                               ],
                             ),
-                            onPressed: () => configNotifier.updateSkipCidrLastAddr(!config.skipCidrLastAddr),
+                            onPressed:
+                                () => configNotifier.updateSkipCidrLastAddr(
+                                  !config.skipCidrLastAddr,
+                                ),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -186,7 +200,7 @@ class SettingsView extends ConsumerWidget {
     required int max,
   }) {
     final controller = TextEditingController(text: value.toString());
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -202,7 +216,9 @@ class SettingsView extends ConsumerWidget {
                   controller: controller,
                   onChanged: (text) {
                     final newValue = int.tryParse(text);
-                    if (newValue != null && newValue >= min && newValue <= max) {
+                    if (newValue != null &&
+                        newValue >= min &&
+                        newValue <= max) {
                       onChanged(newValue);
                     }
                   },

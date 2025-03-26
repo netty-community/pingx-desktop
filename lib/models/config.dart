@@ -1,15 +1,14 @@
-
 class ProbeConfig {
-  final int interval;            // milliseconds between pings
-  final int count;              // number of pings per probe
-  final int timeout;            // seconds timeout
-  final int size;               // ICMP echo size
-  final int wait;               // seconds wait between probe sets
-  final int maxStoreLogs;       // maximum number of logs to store
+  final int interval; // milliseconds between pings
+  final int count; // number of pings per probe
+  final int timeout; // seconds timeout
+  final int size; // ICMP echo size
+  final int wait; // seconds wait between probe sets
+  final int maxStoreLogs; // maximum number of logs to store
   final int maxConcurrentProbes; // maximum concurrent pings
   final bool skipCidrFirstAddr; // skip first address in CIDR range
-  final bool skipCidrLastAddr;  // skip last address in CIDR range
-  final int ttl;                // Time To Live
+  final bool skipCidrLastAddr; // skip last address in CIDR range
+  final int ttl; // Time To Live
 
   const ProbeConfig({
     this.interval = 1000,

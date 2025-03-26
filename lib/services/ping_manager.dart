@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'dart:io';
-import 'dart:math';
+import 'dart:math' as math;
+import 'dart:async';
 import 'package:dart_ping/dart_ping.dart';
+import '../models/dns_result.dart';
 import '../models/ping_result.dart';
 import '../models/config.dart';
 
@@ -39,11 +40,14 @@ class PingManager {
     final activeHosts = hosts.take(config.maxConcurrentProbes).toList();
     for (final host in activeHosts) {
       if (!_activeProbes.containsKey(host)) {
-        final hostAddress = await _resolveHostname(host);
+        final dnsResult = await _resolveHostname(host);
         _results[host] = PingResult(
           hostname: host,
-          ipAddr: hostAddress,
+          ipAddr: dnsResult.ipAddress,
           startTime: DateTime.now(),
+          dnsLookupTime: dnsResult.lookupTime,
+          consecutiveFailureCount: 0, // Initialize consecutiveFailureCount
+          maxFailureCount: 0, // Initialize maxFailureCount
         );
         _startPingProbe(host, config);
       }
@@ -71,6 +75,10 @@ class PingManager {
           stdDevLatency: result.stdDevLatency,
           rtts: List<double>.from(result.rtts),
           pingLogs: List<PingLog>.from(result.pingLogs),
+          dnsLookupTime: result.dnsLookupTime,
+          consecutiveFailureCount:
+              result.consecutiveFailureCount, // Copy consecutiveFailureCount
+          maxFailureCount: result.maxFailureCount, // Copy maxFailureCount
         );
       }
     });
@@ -138,7 +146,9 @@ class PingManager {
           comparison = aRate.compareTo(bRate);
           break;
         case 'lastStatus':
-          comparison = a.lastPingFailed.toString().compareTo(b.lastPingFailed.toString());
+          comparison = a.lastPingFailed.toString().compareTo(
+            b.lastPingFailed.toString(),
+          );
           break;
         case 'minLatency':
           comparison = a.minLatency.compareTo(b.minLatency);
@@ -224,12 +234,19 @@ class PingManager {
     }
   }
 
-  Future<String> _resolveHostname(String host) async {
+  Future<DnsResult> _resolveHostname(String host) async {
     try {
+      final stopwatch = Stopwatch()..start();
       final addresses = await InternetAddress.lookup(host);
-      return addresses.first.address;
+      stopwatch.stop();
+      final dnsLookupTime =
+          stopwatch.elapsedMicroseconds / 1000.0; // Convert to milliseconds
+      return DnsResult(
+        ipAddress: addresses.first.address,
+        lookupTime: dnsLookupTime,
+      );
     } catch (e) {
-      return 'Unknown';
+      return DnsResult(ipAddress: 'Unknown', lookupTime: 0.0);
     }
   }
 
@@ -243,45 +260,50 @@ class PingManager {
     if (response != null && response.time != null) {
       result.successCount++;
       result.lastPingFailed = false;
+      result.consecutiveFailureCount =
+          0; // Reset consecutive failures on success
 
       final rtt =
           response.time!.inMicroseconds / 1000.0; // Convert to milliseconds
       result.rtts.add(rtt);
 
       // Update min/max latency
-      if (result.minLatency == 0 || rtt < result.minLatency) {
+      if (result.minLatency == double.infinity || rtt < result.minLatency) {
         result.minLatency = rtt;
       }
-      result.maxLatency = max(result.maxLatency, rtt);
+      if (rtt > result.maxLatency) {
+        result.maxLatency = rtt;
+      }
 
-      // Calculate average
+      // Update average latency
       result.avgLatency =
           result.rtts.reduce((a, b) => a + b) / result.rtts.length;
 
-      // Calculate standard deviation
-      final mean = result.avgLatency;
-      final variance =
-          result.rtts.map((x) => pow(x - mean, 2)).reduce((a, b) => a + b) /
-          result.rtts.length;
-      result.stdDevLatency = sqrt(variance);
-    } else {
-      result.lastPingFailed = true;
+      // Update standard deviation
+      if (result.rtts.isNotEmpty) {
+        final variance =
+            result.rtts
+                .map((t) => math.pow(t - result.avgLatency, 2))
+                .reduce((a, b) => a + b) /
+            result.rtts.length;
+        result.stdDevLatency = math.sqrt(variance);
+      }
+
+      // Update failure percentage
+      result.failurePercent = (result.failureCount / result.totalCount) * 100;
+
+      // Add ping log
+      result.pingLogs.add(
+        PingLog(
+          timestamp: DateTime.now(),
+          rtt: rtt,
+          failed: false,
+          hostname: host,
+          ipAddr: result.ipAddr,
+          latency: rtt,
+        ),
+      );
     }
-
-    result.failureCount = result.totalCount - result.successCount;
-    result.failurePercent = (result.failureCount / result.totalCount) * 100;
-
-    // Add to ping logs
-    result.pingLogs.add(
-      PingLog(
-        timestamp: DateTime.now(),
-        rtt: response?.time?.inMicroseconds.toDouble() ?? 0,
-        failed: response?.time == null,
-        hostname: result.hostname,
-        ipAddr: result.ipAddr,
-        latency: response?.time?.inMicroseconds.toDouble() ?? 0,
-      ),
-    );
 
     // Keep only last N ping logs
     if (result.pingLogs.length > config.maxStoreLogs) {
@@ -309,6 +331,9 @@ class PingManager {
       stdDevLatency: result.stdDevLatency,
       rtts: List<double>.from(result.rtts),
       pingLogs: List<PingLog>.from(result.pingLogs),
+      dnsLookupTime: result.dnsLookupTime,
+      consecutiveFailureCount: result.consecutiveFailureCount,
+      maxFailureCount: result.maxFailureCount,
     );
   }
 
@@ -319,17 +344,24 @@ class PingManager {
     result.totalCount++;
     result.failureCount++;
     result.lastPingFailed = true;
+    result.consecutiveFailureCount++; // Increment consecutive failures
+    result.maxFailureCount = math.max(
+      result.maxFailureCount,
+      result.consecutiveFailureCount,
+    ); // Update max failures
+
+    // Update failure percentage
     result.failurePercent = (result.failureCount / result.totalCount) * 100;
 
-    // Add to ping logs
+    // Add ping log for failure
     result.pingLogs.add(
       PingLog(
         timestamp: DateTime.now(),
         rtt: 0,
         failed: true,
-        hostname: result.hostname,
+        hostname: host,
         ipAddr: result.ipAddr,
-        latency: result.avgLatency,
+        latency: 0,
       ),
     );
 
@@ -354,6 +386,9 @@ class PingManager {
       stdDevLatency: result.stdDevLatency,
       rtts: List<double>.from(result.rtts),
       pingLogs: List<PingLog>.from(result.pingLogs),
+      dnsLookupTime: result.dnsLookupTime,
+      consecutiveFailureCount: result.consecutiveFailureCount,
+      maxFailureCount: result.maxFailureCount,
     );
   }
 }

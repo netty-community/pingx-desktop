@@ -5,4 +5,6 @@ final pingResultsProvider = StateProvider<List<PingResult>>((ref) => []);
 
 final selectedHostProvider = StateProvider<String?>((ref) => null);
 
-final pingIntervalProvider = StateProvider<Duration>((ref) => const Duration(seconds: 30));
+final pingIntervalProvider = StateProvider<Duration>(
+  (ref) => const Duration(seconds: 30),
+);

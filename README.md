@@ -2,6 +2,12 @@
 
 A modern, cross-platform network ping utility built with Flutter and Dart.
 
+## Screenshot
+
+![Ping Results List](demo/pingResultsTable.png)
+
+![Ping Statistics](demo/pingStatistics.png)
+
 ## Features
 
 - **Multi-Host Pinging**: Ping multiple hosts simultaneously
@@ -15,6 +21,18 @@ A modern, cross-platform network ping utility built with Flutter and Dart.
   - Min/Max/Avg latency
   - Standard deviation
   - Packet loss tracking
+  - DNS lookup time measurement
+  - Consecutive failure tracking
+  - Maximum failure streak tracking
+  - Jitter calculation
+- **Advanced Visualization**:
+  - Real-time response time charts
+  - Color-coded status indicators
+  - Sortable results table
+  - Detailed ping logs
+- **CIDR Range Options**:
+  - Skip first address in range
+  - Skip last address in range
 - **Configurable Settings**:
   - Ping interval (default: 3 seconds)
   - Timeout duration
@@ -58,6 +76,7 @@ A modern, cross-platform network ping utility built with Flutter and Dart.
    - CIDR: `192.168.1.0/24`
 4. Click "Start Pinging" to begin
 5. View real-time results in the main window
+6. Click on any host row to view detailed statistics and charts
 
 ## Configuration
 
@@ -69,12 +88,15 @@ The following settings can be adjusted:
 - `wait`: Interval between pings in seconds (default: 3)
 - `maxStoreLogs`: Maximum number of ping logs to store (default: 100)
 - `maxConcurrentProbes`: Maximum number of concurrent ping operations (default: 100)
+- `skipCidrFirstAddr`: Skip first address in CIDR ranges (default: false)
+- `skipCidrLastAddr`: Skip last address in CIDR ranges (default: false)
 
 ## Dependencies
 
 - `dart_ping`: For ICMP ping operations
 - `flutter_riverpod`: State management
 - `macos_ui`: Native macOS UI components
+- `fl_chart`: Interactive charts and graphs
 
 ```bash
 flutter config --enable-macos-desktop

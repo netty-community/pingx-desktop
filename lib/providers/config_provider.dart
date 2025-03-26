@@ -45,6 +45,8 @@ class ConfigNotifier extends StateNotifier<ProbeConfig> {
   }
 }
 
-final configProvider = StateNotifierProvider<ConfigNotifier, ProbeConfig>((ref) {
+final configProvider = StateNotifierProvider<ConfigNotifier, ProbeConfig>((
+  ref,
+) {
   return ConfigNotifier();
 });
