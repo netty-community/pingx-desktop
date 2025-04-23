@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
 import '../widgets/ping_results_table.dart';
@@ -6,6 +7,8 @@ import '../../providers/ping_providers.dart';
 import 'settings_screen.dart';
 import '../../providers/config_provider.dart';
 import '../../utils/validation.dart';
+import '../../models/ping_result.dart';
+import '../../pdf/pdf_export_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -249,29 +252,29 @@ class DashboardView extends ConsumerWidget {
                                               context: context,
                                               builder:
                                                   (context) => MacosAlertDialog(
-                                                    appIcon: const MacosIcon(
-                                                      CupertinoIcons
-                                                          .exclamationmark_triangle,
-                                                      color:
-                                                          MacosColors
-                                                              .systemRedColor,
-                                                    ),
-                                                    title: Text(
-                                                      'Invalid Input',
-                                                    ),
-                                                    message: Text(
-                                                      '${trimmed}: ${validation.error ?? "Invalid input"}',
-                                                    ),
-                                                    primaryButton: PushButton(
-                                                      controlSize:
-                                                          ControlSize.large,
-                                                      onPressed:
-                                                          () => Navigator.pop(
+                                                appIcon: const MacosIcon(
+                                                  CupertinoIcons
+                                                      .exclamationmark_triangle,
+                                                  color:
+                                                      MacosColors
+                                                          .systemRedColor,
+                                                ),
+                                                title: Text(
+                                                  'Invalid Input',
+                                                ),
+                                                message: Text(
+                                                  '${trimmed}: ${validation.error ?? "Invalid input"}',
+                                                ),
+                                                primaryButton: PushButton(
+                                                  controlSize:
+                                                      ControlSize.large,
+                                                  onPressed:
+                                                      () => Navigator.pop(
                                                             context,
                                                           ),
-                                                      child: const Text('OK'),
-                                                    ),
-                                                  ),
+                                                  child: const Text('OK'),
+                                                ),
+                                              ),
                                             );
                                             return;
                                           }
@@ -313,7 +316,7 @@ class DashboardView extends ConsumerWidget {
                                         children: [
                                           MacosIcon(
                                             CupertinoIcons.play_circle_fill,
-                                            color: CupertinoColors.activeBlue,
+                                            color: const Color.fromARGB(255, 194, 216, 240),
                                           ),
                                           const SizedBox(width: 4),
                                           Text('Start Ping'),
@@ -383,12 +386,65 @@ class DashboardView extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Ping Results',
-                                  style:
-                                      MacosTheme.of(
-                                        context,
-                                      ).typography.headline,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Ping Results',
+                                      style:
+                                          MacosTheme.of(
+                                            context,
+                                          ).typography.headline,
+                                    ),
+                                    PushButton(
+                                      controlSize: ControlSize.regular,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          MacosIcon(
+                                            CupertinoIcons.doc_text,
+                                            color: const Color.fromARGB(255, 213, 229, 238),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text('Export PDF'),
+                                        ],
+                                      ),
+                                      onPressed: () async {
+                                        try {
+                                          final data = ref.read(pingResultsProvider).when(
+                                                data: (List<PingResult> data) => data,
+                                                loading: () => <PingResult>[],
+                                                error: (_, __) => <PingResult>[],
+                                              );
+                                          await PdfExportService.exportPingResults(data);
+                                        } catch (e) {
+                                          showMacosAlertDialog(
+                                            context: context,
+                                            builder: (_) => MacosAlertDialog(
+                                              appIcon: const MacosIcon(
+                                                CupertinoIcons.exclamationmark_triangle,
+                                                color: MacosColors.systemRedColor,
+                                              ),
+                                              title: Text(
+                                                'Export Failed',
+                                                style: MacosTheme.of(context).typography.headline,
+                                              ),
+                                              message: Text(
+                                                'Failed to export PDF: $e',
+                                                textAlign: TextAlign.center,
+                                                style: MacosTheme.of(context).typography.body,
+                                              ),
+                                              primaryButton: PushButton(
+                                                controlSize: ControlSize.large,
+                                                onPressed: () => Navigator.pop(context),
+                                                child: const Text('OK'),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 16),
                                 const PingResultsTable(),

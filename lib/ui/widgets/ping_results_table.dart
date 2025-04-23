@@ -144,161 +144,178 @@ class PingResultsTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final results = ref.watch(pingResultsProvider);
 
-    return results.when(
-      data:
-          (data) => Container(
-            decoration: BoxDecoration(
-              color: MacosTheme.of(context).canvasColor,
-              border: Border.all(color: MacosTheme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(4),
+    return Container(
+      decoration: BoxDecoration(
+        color: MacosTheme.of(context).canvasColor,
+        border: Border.all(color: MacosTheme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Table(
+            border: TableBorder(
+              horizontalInside: BorderSide(
+                color: MacosTheme.of(context).dividerColor,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Table(
-                  border: TableBorder(
-                    horizontalInside: BorderSide(
-                      color: MacosTheme.of(context).dividerColor,
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {
+              0: FlexColumnWidth(1.1), // Hostname
+              1: FlexColumnWidth(0.9), // IP
+              2: FlexColumnWidth(1.8), // Success Rate
+              3: FlexColumnWidth(0.9), // Status
+              4: FlexColumnWidth(0.9), // Min
+              5: FlexColumnWidth(1.0), // Max
+              6: FlexColumnWidth(0.9), // Avg
+              7: FlexColumnWidth(0.9), // Jitter
+              8: FlexColumnWidth(0.7), // Actions
+            },
+            children: [
+              TableRow(
+                decoration: BoxDecoration(
+                  color: MacosTheme.of(
+                    context,
+                  ).primaryColor.withOpacity(0.1),
+                ),
+                children: [
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'Hostname',
+                        'hostname',
+                        ref,
+                      ),
                     ),
                   ),
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  columnWidths: const {
-                    0: FlexColumnWidth(1.1), // Hostname
-                    1: FlexColumnWidth(0.9), // IP
-                    2: FlexColumnWidth(1.8), // Success Rate
-                    3: FlexColumnWidth(0.9), // Status
-                    4: FlexColumnWidth(0.9), // Min
-                    5: FlexColumnWidth(1.0), // Max
-                    6: FlexColumnWidth(0.9), // Avg
-                    7: FlexColumnWidth(0.9), // Jitter
-                    8: FlexColumnWidth(0.7), // Actions
-                  },
-                  children: [
-                    TableRow(
-                      decoration: BoxDecoration(
-                        color: MacosTheme.of(
-                          context,
-                        ).primaryColor.withOpacity(0.1),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'IP Address',
+                        'ipAddr',
+                        ref,
                       ),
-                      children: [
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'Hostname',
-                              'hostname',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'IP Address',
-                              'ipAddr',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'Success Rate',
-                              'successRate',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'Last Status',
-                              'lastStatus',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'MinRTT(ms)',
-                              'minLatency',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'MaxRTT(ms)',
-                              'maxLatency',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'AvgRTT(ms)',
-                              'avgLatency',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: _buildSortableHeader(
-                              context,
-                              'Jitter(ms)',
-                              'jitter',
-                              ref,
-                            ),
-                          ),
-                        ),
-                        TableCell(
-                          verticalAlignment: TableCellVerticalAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: SelectableText(
-                              'Details',
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
-                    ...data
-                        .map((result) => _buildResultRow(context, result, ref))
-                        .toList(),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'Success Rate',
+                        'successRate',
+                        ref,
+                      ),
+                    ),
+                  ),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'Last Status',
+                        'lastStatus',
+                        ref,
+                      ),
+                    ),
+                  ),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'MinRTT(ms)',
+                        'minLatency',
+                        ref,
+                      ),
+                    ),
+                  ),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'MaxRTT(ms)',
+                        'maxLatency',
+                        ref,
+                      ),
+                    ),
+                  ),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'AvgRTT(ms)',
+                        'avgLatency',
+                        ref,
+                      ),
+                    ),
+                  ),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildSortableHeader(
+                        context,
+                        'Jitter(ms)',
+                        'jitter',
+                        ref,
+                      ),
+                    ),
+                  ),
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: SelectableText(
+                        'Details',
+                        textAlign: TextAlign.left,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              ...results.when(
+                data: (data) => data
+                    .map((result) => _buildResultRow(context, result, ref))
+                    .toList(),
+                loading: () => <TableRow>[],
+                error: (_, __) => <TableRow>[],
+              ),
+            ],
           ),
-      loading: () => const Center(child: ProgressCircle()),
-      error: (error, stack) => Center(child: Text('Error: $error')),
+          if (results.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: ProgressCircle()),
+            ),
+          if (results.hasError)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Center(
+                child: Text(
+                  'Error: ${results.error}',
+                  style: MacosTheme.of(context)
+                      .typography
+                      .body
+                      .copyWith(color: MacosColors.systemRedColor),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

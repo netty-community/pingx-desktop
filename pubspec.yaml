@@ -34,7 +34,7 @@ dependencies:
   fl_chart: ^0.63.0  # For real-time graphs
   riverpod: ^2.4.0   # State management
   sqflite: ^2.3.0    # Local storage
-  path_provider: ^2.1.0
+  path_provider: ^2.1.2
   window_manager: ^0.3.7  # For window management
 
   # The following adds the Cupertino Icons font to your application.
@@ -42,6 +42,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   macos_ui: ^2.1.10
+  flutter_typeahead: ^4.8.0
+  pdf: ^3.10.8
+  open_file: ^3.3.2
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +67,14 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: SourceHanSansSC
+      fonts:
+        - asset: assets/fonts/SourceHanSansSC-Regular.otf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

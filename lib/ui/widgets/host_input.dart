@@ -1,9 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
-import '../../providers/ping_providers.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../../providers/config_provider.dart';
 import '../../utils/validation.dart';
+
+// 添加 hostsProvider
+final hostsProvider = StateProvider<List<String>>((ref) => []);
 
 class HostInputSheet extends ConsumerStatefulWidget {
   const HostInputSheet({super.key});
@@ -14,6 +18,7 @@ class HostInputSheet extends ConsumerStatefulWidget {
 
 class _HostInputSheetState extends ConsumerState<HostInputSheet> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
   List<ValidationResult> _validationResults = [];
   bool _hasError = false;
 
@@ -26,7 +31,19 @@ class _HostInputSheetState extends ConsumerState<HostInputSheet> {
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  ValidationResult validateHost(String input) {
+    if (input.trim().isEmpty) {
+      return ValidationResult(
+        isValid: false,
+        error: 'Please enter a valid IP address, hostname, or CIDR range',
+        type: 'invalid',
+      );
+    }
+    return InputValidator.validateInput(input);
   }
 
   void _validateInput() {
@@ -40,188 +57,165 @@ class _HostInputSheetState extends ConsumerState<HostInputSheet> {
 
       // Split by lines and validate each non-empty line
       final lines = text.split('\n');
-      _validationResults = lines.map((line) {
-        final trimmed = line.trim();
-        if (trimmed.isEmpty) {
-          return ValidationResult(
-            isValid: false,
-            error: 'Please enter a valid IP address, hostname, or CIDR range',
-            type: 'invalid',
-          );
-        }
-        return InputValidator.validateInput(trimmed);
-      }).toList();
+      _validationResults =
+          lines.map((line) {
+            final trimmed = line.trim();
+            if (trimmed.isEmpty) {
+              return ValidationResult(
+                isValid: false,
+                error:
+                    'Please enter a valid IP address, hostname, or CIDR range',
+                type: 'invalid',
+              );
+            }
+            return validateHost(trimmed);
+          }).toList();
 
       _hasError = _validationResults.any((result) => !result.isValid);
     });
   }
 
-  String _getTypeIcon(String type) {
-    switch (type) {
-      case 'ipv4':
-        return '🌐'; // Globe for IPv4
-      case 'ipv6':
-        return '📡'; // Satellite for IPv6
-      case 'fqdn':
-        return '🔤'; // ABC for domain names
-      case 'cidr':
-        return '🌍'; // Earth for network ranges
-      default:
-        return '❌'; // X for invalid
+  Future<List<String>> _getSuggestions(String pattern) async {
+    final config = ref.read(configProvider);
+    final recentHosts = config.recentHosts ?? [];
+
+    if (pattern.isEmpty) {
+      return recentHosts;
     }
+
+    return recentHosts
+        .where((host) => host.toLowerCase().contains(pattern.toLowerCase()))
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MacosSheet(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enter Hosts',
-              style: MacosTheme.of(context).typography.headline,
+    return MacosScaffold(
+      toolBar: ToolBar(
+        title: const Text('Enter Hosts'),
+        actions: [
+          ToolBarIconButton(
+            label: 'Done',
+            icon: const MacosIcon(
+              CupertinoIcons.check_mark,
+              color: CupertinoColors.activeBlue,
             ),
-            const SizedBox(height: 16),
-            MacosTooltip(
-              message:
-                  'Examples:\n'
-                  '223.5.5.5 (IPv4)\n'
-                  '2001:db8::1 (IPv6)\n'
-                  'google.com (Domain)\n'
-                  '192.168.1.0/24 (CIDR)',
-              child: MacosTextField(
-                controller: _controller,
-                placeholder: 'Enter hosts (one per line) or CIDR ranges',
-                maxLines: 10,
-                enableSuggestions: true,
-                enableInteractiveSelection: true,
-                selectionControls: CupertinoTextSelectionControls(),
-              ),
-            ),
-            if (_validationResults.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                height: 100,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: MacosTheme.of(context).dividerColor,
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: MacosScrollbar(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _validationResults.length,
-                    itemBuilder: (context, index) {
-                      final result = _validationResults[index];
-                      final lines = _controller.text.split('\n');
-                      if (index >= lines.length) return const SizedBox();
+            onPressed:
+                _hasError
+                    ? null
+                    : () {
+                      final hosts =
+                          _controller.text
+                              .split('\n')
+                              .map((e) => e.trim())
+                              .where((e) => e.isNotEmpty)
+                              .toList();
+                      ref.read(hostsProvider.notifier).state = hosts;
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        child: Row(
-                          children: [
-                            Text(_getTypeIcon(result.type)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                lines[index],
-                                style: TextStyle(
-                                  color:
-                                      result.isValid
-                                          ? MacosTheme.of(
-                                            context,
-                                          ).typography.body.color
-                                          : MacosColors.systemRedColor,
-                                ),
-                              ),
-                            ),
-                            if (!result.isValid) ...[
-                              const SizedBox(width: 8),
-                              MacosTooltip(
-                                message: result.error ?? 'Invalid input',
-                                child: const Text('ℹ️'),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
+                      // Save to recent hosts
+                      final config = ref.read(configProvider);
+                      final recentHosts = {
+                        ...config.recentHosts ?? [],
+                        ...hosts,
+                      };
+                      ref
+                          .read(configProvider.notifier)
+                          .updateConfig(
+                            config.copyWith(recentHosts: recentHosts.toList()),
+                          );
+
+                      Navigator.of(context).pop();
                     },
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                PushButton(
-                  controlSize: ControlSize.large,
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 8),
-                PushButton(
-                  controlSize: ControlSize.large,
-                  secondary: false,
-                  onPressed:
-                      _hasError || _controller.text.trim().isEmpty
-                          ? null // Disable button if there are errors
-                          : () {
-                            // Validate all inputs first
-                            _validateInput();
-                            if (_hasError) return;
-
-                            final text = _controller.text;
-                            final config = ref.read(configProvider);
-                            final List<String> expandedHosts = [];
-
-                            // Process each line
-                            for (final line in text.split('\n')) {
-                              final trimmed = line.trim();
-                              if (trimmed.isEmpty) continue;
-
-                              // Check if it's a CIDR notation
-                              final validation = InputValidator.validateInput(trimmed);
-                              if (!validation.isValid) continue;
-
-                              if (validation.type == 'cidr') {
-                                // Expand CIDR and add each address individually
-                                expandedHosts.addAll(
-                                  InputValidator.expandCIDR(
-                                    trimmed,
-                                    skipFirstAddress: config.skipCidrFirstAddr,
-                                    skipLastAddress: config.skipCidrLastAddr,
-                                  ),
-                                );
-                              } else {
-                                expandedHosts.add(trimmed);
-                              }
-                            }
-
-                            if (expandedHosts.isEmpty) {
-                              return; // Prevent empty list
-                            }
-
-                            final manager = ref.read(pingManagerProvider);
-                            manager.startPinging(
-                              expandedHosts,
-                              config,
-                            );
-                            Navigator.pop(context);
-                          },
-                  child: const Text('Start Pinging'),
-                ),
-              ],
-            ),
-          ],
-        ),
+            showLabel: false,
+          ),
+        ],
       ),
+      children: [
+        ContentArea(
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: TypeAheadField(
+                      textFieldConfiguration: TextFieldConfiguration(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        maxLines: null,
+                        enableInteractiveSelection: true,
+                        cursorColor: MacosTheme.of(context).primaryColor,
+                        style: MacosTheme.of(context).typography.body,
+                        keyboardAppearance: Brightness.light,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: MacosColors.textBackgroundColor,
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color:
+                                  _hasError
+                                      ? MacosColors.systemRedColor
+                                      : MacosColors.separatorColor,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: MacosColors.separatorColor,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: MacosTheme.of(context).primaryColor,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          contentPadding: const EdgeInsets.all(8),
+                          hintText:
+                              'Enter IP addresses, hostnames, or CIDR ranges (one per line)',
+                          hintStyle: MacosTheme.of(
+                            context,
+                          ).typography.body.copyWith(
+                            color: MacosColors.placeholderTextColor,
+                          ),
+                        ),
+                      ),
+                      suggestionsCallback: _getSuggestions,
+                      itemBuilder: (context, suggestion) {
+                        return Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            suggestion.toString(),
+                            style: MacosTheme.of(context).typography.body,
+                          ),
+                        );
+                      },
+                      onSuggestionSelected: (suggestion) {
+                        _controller.text = suggestion.toString();
+                      },
+                      suggestionsBoxDecoration: SuggestionsBoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        elevation: 4,
+                      ),
+                    ),
+                  ),
+                  if (_hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Please fix the invalid entries',
+                        style: MacosTheme.of(context).typography.body.copyWith(
+                          color: MacosColors.systemRedColor,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

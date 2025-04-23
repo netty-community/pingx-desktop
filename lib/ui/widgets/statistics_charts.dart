@@ -386,8 +386,8 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
         .map((log) => log.rtt) // Convert to ms
         .fold(0.0, (max, value) => value > max ? value : max);
 
-    // Round up to nearest multiple of 100 for cleaner scale
-    final yAxisMax = ((maxRtt + 99) ~/ 100) * 100.0;
+    // Round up to nearest multiple of 100 for cleaner scale, minimum 100ms
+    final yAxisMax = maxRtt <= 0 ? 100.0 : ((maxRtt + 99) ~/ 100) * 100.0;
 
     final spots = allPingLogs.map((log) {
       return FlSpot(
@@ -554,7 +554,7 @@ class _StatisticsChartsState extends ConsumerState<StatisticsCharts> {
                         child: Text(
                           log.failed
                               ? '-'
-                              : (log.rtt / 1000).toStringAsFixed(2),
+                              : (log.rtt).toStringAsFixed(2),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
