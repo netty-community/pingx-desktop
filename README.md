@@ -103,7 +103,7 @@ flutter config --enable-macos-desktop
 
 flutter run -d macos
 
-flutter build macos
+flutter build macos --release
 
 mkdir -p tmp_dmg && cp -r "build/macos/Build/Products/Release/PingX.app" tmp_dmg/ && create-dmg \
   --volname "PingX" \
